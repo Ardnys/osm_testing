@@ -16,6 +16,8 @@ const setup_things = () => {
 	});
 };
 
+const ll_to_xy = () => {};
+
 const on_read_file = (file) => {
 	if (file) {
 		console.log("reading the file: " + file.name);
@@ -28,15 +30,20 @@ const on_read_file = (file) => {
 			var map_xml = parser.parseFromString(event.target?.result, "text/xml");
 			var osm_root = map_xml.children[0];
 			var nodes = osm_root.children;
+			// TODO: make them proper pls
 			var maxlat = 0,
 				maxlon = 0,
 				minlat = 100,
 				minlon = 100;
 			var screenHeight = 600.0;
 			var screenWidth = 800.0;
-			var lats_lons = [];
+
+			var lats_lons = new Map();
+			var ways = [];
+
 			var c = document.getElementById("canvas");
 			var ctx = c.getContext("2d");
+
 			for (let i = 0; i < nodes.length; i++) {
 				var node = nodes[i];
 				var name = node.localName;
@@ -47,38 +54,51 @@ const on_read_file = (file) => {
 				if (name === "node") {
 					var lat = attr["lat"].value;
 					var lon = attr["lon"].value;
-					if (lon < minlon) {
-						minlon = lon;
-					}
-					if (lon > maxlon) {
-						maxlon = lon;
-					}
-					if (lat < minlat) {
-						minlat = lat;
-					}
-					if (lat > maxlat) {
-						maxlat = lat;
-					}
+					var id = parseInt(attr["id"].value);
+
+					minlon = Math.min(lon, minlon);
+					minlat = Math.min(lat, minlat);
+					maxlon = Math.max(lon, maxlon);
+					maxlat = Math.max(lat, maxlat);
+
 					var tags = node.children;
+					// TODO: handle this in a nicer way pls
 					// for (let j = 0; j < tags.length; j++) {
 					// 	console.log(tags[j].attributes["k"].nodeValue);
 					// 	console.log(tags[j].attributes["k"] === "k=name");
 					// 	var key = tags[j].attributes["k"].nodeValue;
-					// 	if (
-					// 		key === "highway" ||
-					// 		key === "healthcare" ||
-					// 		key === "railway"
-					// 	) {
-					// 		var size = 2;
-					// 		if (key === "healthcare") {
-					// 			size = 5;
-					// 		}
-					// 	}
-					// }
+
+					// TODO: this is gonna be larger probably
+					const n = {
+						lat: lat,
+						lon: lon,
+						size: size,
+					};
 
 					var size = 1;
-
-					lats_lons.push([lat, lon, size]);
+					lats_lons.set(id, n);
+				} else if (name === "way") {
+					var id = attr["id"].value;
+					var nds = node.children;
+					var refs = [];
+					var name = "";
+					for (let j = 0; j < nds.length; j++) {
+						var way_ref = nds[j].attributes["ref"];
+						var way_name = nds[j].attributes["name"];
+						if (way_ref) {
+							var ref_id = parseInt(way_ref.nodeValue);
+							refs.push(ref_id);
+						}
+						if (way_name) {
+							name = way_name.nodeValue;
+						}
+					}
+					const w = {
+						id: id,
+						refs: refs,
+						name: name,
+					};
+					ways.push(w);
 				}
 			}
 			// console.log(
@@ -91,18 +111,49 @@ const on_read_file = (file) => {
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
 			ctx.fillStyle = "white";
 
-			for (let i = 0; i < lats_lons.length; i++) {
-				const [lat, lon, size] = lats_lons[i];
+			// render points
+			for (let [id, n] of lats_lons) {
 				var slope_lat = (1.0 * screenHeight) / (maxlat - minlat);
 				var slope_lon = (1.0 * screenWidth) / (maxlon - minlon);
 
-				x = slope_lon * (lon - minlon);
-				y = slope_lat * (lat - minlat);
+				x = slope_lon * (n.lon - minlon);
+				y = slope_lat * (n.lat - minlat);
 
 				// console.log(`x: ${x}, y: ${y}`);
 
-				ctx.fillRect(x, y, size, size);
+				// ctx.fillRect(x, y, n.size, n.size);
 			}
+
+			// render ways
+			for (let i = 0; i < ways.length; i++) {
+				const w = ways[i];
+
+				ctx.beginPath();
+				ctx.lineWidth = 0.5;
+				ctx.strokeStyle = "#ffffff";
+				var count = 0;
+
+				for (const r of w.refs) {
+					var node = lats_lons.get(r);
+
+					var slope_lat = (1.0 * screenHeight) / (maxlat - minlat);
+					var slope_lon = (1.0 * screenWidth) / (maxlon - minlon);
+
+					x = slope_lon * (node.lon - minlon);
+					y = slope_lat * (node.lat - minlat);
+					if (count == 0) {
+						ctx.moveTo(x, y);
+					} else {
+						ctx.lineTo(x, y);
+					}
+
+					count += 1;
+				}
+
+				ctx.stroke();
+			}
+			const img = canvas.toDataURL("image/png");
+			document.write('<img src="' + img + '"/>');
 
 			// console.log(osm_root);
 		};
