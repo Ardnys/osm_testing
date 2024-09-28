@@ -8,11 +8,23 @@
 const setup_things = () => {
 	const file_thing = document.getElementById("file-selector");
 	const file_submit_button = document.getElementById("file-submit-button");
+	const save_img_button = document.getElementById("save-image-button");
+	const clear_canvas_button = document.getElementById("clear-canvas-button");
 	file_submit_button.addEventListener("click", () => {
 		const file = file_thing.files?.[0];
 		if (file) {
 			on_read_file(file);
 		}
+	});
+	save_img_button.addEventListener("click", () => {
+		var img = new Image();
+		img.src = document.getElementById("canvas").toDataURL("image/png");
+		document.body.appendChild(img);
+	});
+	clear_canvas_button.addEventListener("click", () => {
+		var ctx = document.getElementById("canvas").getContext("2d");
+		ctx.fillStyle = "black";
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
 	});
 };
 
@@ -152,8 +164,6 @@ const on_read_file = (file) => {
 
 				ctx.stroke();
 			}
-			const img = canvas.toDataURL("image/png");
-			document.write('<img src="' + img + '"/>');
 
 			// console.log(osm_root);
 		};
