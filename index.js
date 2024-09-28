@@ -15,6 +15,7 @@ const setup_things = () => {
 		}
 	});
 };
+
 const on_read_file = (file) => {
 	if (file) {
 		console.log("reading the file: " + file.name);
@@ -58,15 +59,40 @@ const on_read_file = (file) => {
 					if (lat > maxlat) {
 						maxlat = lat;
 					}
-					lats_lons.push([lat, lon]);
+					var tags = node.children;
+					// for (let j = 0; j < tags.length; j++) {
+					// 	console.log(tags[j].attributes["k"].nodeValue);
+					// 	console.log(tags[j].attributes["k"] === "k=name");
+					// 	var key = tags[j].attributes["k"].nodeValue;
+					// 	if (
+					// 		key === "highway" ||
+					// 		key === "healthcare" ||
+					// 		key === "railway"
+					// 	) {
+					// 		var size = 2;
+					// 		if (key === "healthcare") {
+					// 			size = 5;
+					// 		}
+					// 	}
+					// }
+
+					var size = 1;
+
+					lats_lons.push([lat, lon, size]);
 				}
 			}
 			// console.log(
 			// 	`minlat: ${minlat}, maxlat: ${maxlat}, minlon: ${minlon}, maxlon ${maxlon}`
 			// );
 
+			ctx.translate(0, canvas.height); // Move the origin to the bottom-left
+			ctx.scale(1, -1); // Flip the Y-axis
+			ctx.fillStyle = "black";
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			ctx.fillStyle = "white";
+
 			for (let i = 0; i < lats_lons.length; i++) {
-				const [lat, lon] = lats_lons[i];
+				const [lat, lon, size] = lats_lons[i];
 				var slope_lat = (1.0 * screenHeight) / (maxlat - minlat);
 				var slope_lon = (1.0 * screenWidth) / (maxlon - minlon);
 
@@ -75,7 +101,7 @@ const on_read_file = (file) => {
 
 				// console.log(`x: ${x}, y: ${y}`);
 
-				ctx.fillRect(x, y, 1, 1);
+				ctx.fillRect(x, y, size, size);
 			}
 
 			// console.log(osm_root);
