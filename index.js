@@ -92,28 +92,27 @@ const on_read_file = (file) => {
 					space.edge_array.push(w);
 				}
 			}
-			var translatePos = { x: 0, y: 0 };
+			var translate_pos = { x: 0, y: 0 };
 			var scale = 1;
 			var delta = 0.2;
 
-			document.getElementById("plus").addEventListener(
-				"click",
-				function () {
-					scale = Math.min(Math.max(scale + delta, 0.1), 5);
-					draw(scale, translatePos, space);
+			var canvas = document.getElementById("canvas");
+			canvas.addEventListener(
+				"wheel",
+				function (event) {
+					event.preventDefault();
+					if (event.deltaY * -1 < 0) {
+						scale = Math.min(Math.max(scale - delta, 0.1), 5);
+					} else {
+						scale = Math.min(Math.max(scale + delta, 0.1), 5);
+					}
+
+					draw(scale, translate_pos, space);
 				},
 				false
 			);
 
-			document.getElementById("minus").addEventListener(
-				"click",
-				function () {
-					scale = Math.min(Math.max(scale - delta, 0.1), 5);
-					draw(scale, translatePos, space);
-				},
-				false
-			);
-			draw(scale, translatePos, space);
+			draw(scale, translate_pos, space);
 		};
 		reader.onerror = (event) => {
 			alert("could not read the file");
@@ -152,8 +151,16 @@ const draw = (scale, tranlatePos, space) => {
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-	console.log(`scale: ${scale}`);
-	ctx.translate(tranlatePos.x, tranlatePos.y);
+	const scaledWidth = canvas.width * scale;
+	const scaledHeight = canvas.height * scale;
+
+	const scaledOffsetX = (scaledWidth - canvas.width) / 2;
+	const scaledOffsetY = (scaledHeight - canvas.height) / 2;
+
+	ctx.translate(
+		tranlatePos.x * scale - scaledOffsetX,
+		tranlatePos.y * scale - scaledOffsetY
+	);
 	ctx.scale(scale, scale);
 	ctx.fillStyle = "black";
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
