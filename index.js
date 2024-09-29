@@ -5,6 +5,7 @@
 		setup_things();
 	}
 })(window, document, undefined);
+
 const setup_things = () => {
 	const file_thing = document.getElementById("file-selector");
 	const file_submit_button = document.getElementById("file-submit-button");
@@ -28,8 +29,6 @@ const setup_things = () => {
 	});
 };
 
-const ll_to_xy = () => {};
-
 const on_read_file = (file) => {
 	if (file) {
 		console.log("reading the file: " + file.name);
@@ -43,18 +42,7 @@ const on_read_file = (file) => {
 			var osm_root = map_xml.children[0];
 			var nodes = osm_root.children;
 			// TODO: make them proper pls
-			var maxlat = 0,
-				maxlon = 0,
-				minlat = 100,
-				minlon = 100;
-			var screenHeight = 600.0;
-			var screenWidth = 800.0;
-
-			var lats_lons = new Map();
-			var ways = [];
-
-			var c = document.getElementById("canvas");
-			var ctx = c.getContext("2d");
+			var space = init_space();
 
 			for (let i = 0; i < nodes.length; i++) {
 				var node = nodes[i];
@@ -68,27 +56,18 @@ const on_read_file = (file) => {
 					var lon = attr["lon"].value;
 					var id = parseInt(attr["id"].value);
 
-					minlon = Math.min(lon, minlon);
-					minlat = Math.min(lat, minlat);
-					maxlon = Math.max(lon, maxlon);
-					maxlat = Math.max(lat, maxlat);
-
-					var tags = node.children;
-					// TODO: handle this in a nicer way pls
-					// for (let j = 0; j < tags.length; j++) {
-					// 	console.log(tags[j].attributes["k"].nodeValue);
-					// 	console.log(tags[j].attributes["k"] === "k=name");
-					// 	var key = tags[j].attributes["k"].nodeValue;
+					space.minlon = Math.min(lon, space.minlon);
+					space.minlat = Math.min(lat, space.minlat);
+					space.maxlon = Math.max(lon, space.maxlon);
+					space.maxlat = Math.max(lat, space.maxlat);
 
 					// TODO: this is gonna be larger probably
 					const n = {
 						lat: lat,
 						lon: lon,
-						size: size,
 					};
 
-					var size = 1;
-					lats_lons.set(id, n);
+					space.node_map.set(id, n);
 				} else if (name === "way") {
 					var id = attr["id"].value;
 					var nds = node.children;
@@ -110,67 +89,112 @@ const on_read_file = (file) => {
 						refs: refs,
 						name: name,
 					};
-					ways.push(w);
+					space.edge_array.push(w);
 				}
 			}
-			// console.log(
-			// 	`minlat: ${minlat}, maxlat: ${maxlat}, minlon: ${minlon}, maxlon ${maxlon}`
-			// );
+			var translatePos = { x: 0, y: 0 };
+			var scale = 1;
+			var delta = 0.2;
 
-			ctx.translate(0, canvas.height); // Move the origin to the bottom-left
-			ctx.scale(1, -1); // Flip the Y-axis
-			ctx.fillStyle = "black";
-			ctx.fillRect(0, 0, canvas.width, canvas.height);
-			ctx.fillStyle = "white";
+			document.getElementById("plus").addEventListener(
+				"click",
+				function () {
+					scale = Math.min(Math.max(scale + delta, 0.1), 5);
+					draw(scale, translatePos, space);
+				},
+				false
+			);
 
-			// render points
-			for (let [id, n] of lats_lons) {
-				var slope_lat = (1.0 * screenHeight) / (maxlat - minlat);
-				var slope_lon = (1.0 * screenWidth) / (maxlon - minlon);
-
-				x = slope_lon * (n.lon - minlon);
-				y = slope_lat * (n.lat - minlat);
-
-				// console.log(`x: ${x}, y: ${y}`);
-
-				// ctx.fillRect(x, y, n.size, n.size);
-			}
-
-			// render ways
-			for (let i = 0; i < ways.length; i++) {
-				const w = ways[i];
-
-				ctx.beginPath();
-				ctx.lineWidth = 0.5;
-				ctx.strokeStyle = "#ffffff";
-				var count = 0;
-
-				for (const r of w.refs) {
-					var node = lats_lons.get(r);
-
-					var slope_lat = (1.0 * screenHeight) / (maxlat - minlat);
-					var slope_lon = (1.0 * screenWidth) / (maxlon - minlon);
-
-					x = slope_lon * (node.lon - minlon);
-					y = slope_lat * (node.lat - minlat);
-					if (count == 0) {
-						ctx.moveTo(x, y);
-					} else {
-						ctx.lineTo(x, y);
-					}
-
-					count += 1;
-				}
-
-				ctx.stroke();
-			}
-
-			// console.log(osm_root);
+			document.getElementById("minus").addEventListener(
+				"click",
+				function () {
+					scale = Math.min(Math.max(scale - delta, 0.1), 5);
+					draw(scale, translatePos, space);
+				},
+				false
+			);
+			draw(scale, translatePos, space);
 		};
 		reader.onerror = (event) => {
 			alert("could not read the file");
 		};
 	} else {
 		console.log("file is null");
+	}
+};
+
+// TODO: factor this out in a nice way
+const init_space = () => {
+	return {
+		maxlat: 0,
+		maxlon: 0,
+		minlat: 90,
+		minlon: 90,
+		screenHeight: 600,
+		screenWidth: 800,
+		node_map: new Map(),
+		edge_array: [],
+	};
+};
+
+const ll_to_xy = (space, n) => {
+	var slope_lat = (1.0 * space.screenHeight) / (space.maxlat - space.minlat);
+	var slope_lon = (1.0 * space.screenWidth) / (space.maxlon - space.minlon);
+
+	x = slope_lon * (n.lon - space.minlon);
+	y = slope_lat * (n.lat - space.minlat);
+	return [x, y];
+};
+
+const draw = (scale, tranlatePos, space) => {
+	var canvas = document.getElementById("canvas");
+	var ctx = canvas.getContext("2d");
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+	console.log(`scale: ${scale}`);
+	ctx.translate(tranlatePos.x, tranlatePos.y);
+	ctx.scale(scale, scale);
+	ctx.fillStyle = "black";
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = "white";
+
+	draw_edges(space, ctx);
+};
+
+const draw_nodes = (space, ctx) => {
+	// render points
+	for (let [id, n] of space.node_map) {
+		const [x, y] = ll_to_xy(space, n);
+		// console.log(`x: ${x}, y: ${y}`);
+		// ctx.fillRect(x, y, n.size, n.size);
+	}
+};
+
+const draw_edges = (space, ctx) => {
+	// render ways
+	for (let i = 0; i < space.edge_array.length; i++) {
+		const w = space.edge_array[i];
+
+		ctx.beginPath();
+		ctx.lineWidth = 0.5;
+		ctx.strokeStyle = "#ffffff";
+		var count = 0;
+
+		for (const r of w.refs) {
+			var node = space.node_map.get(r);
+
+			const [x, y] = ll_to_xy(space, node);
+
+			if (count == 0) {
+				ctx.moveTo(x, y);
+			} else {
+				ctx.lineTo(x, y);
+			}
+
+			count += 1;
+		}
+
+		ctx.stroke();
 	}
 };
