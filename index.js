@@ -95,6 +95,8 @@ const on_read_file = (file) => {
 			var translate_pos = { x: 0, y: 0 };
 			var scale = 1;
 			var delta = 0.2;
+			var is_dragging = false;
+			var startDragOffset = { x: 0, y: 0 };
 
 			var canvas = document.getElementById("canvas");
 			canvas.addEventListener(
@@ -111,6 +113,28 @@ const on_read_file = (file) => {
 				},
 				false
 			);
+
+			canvas.addEventListener("mousedown", function (event) {
+				is_dragging = true;
+				startDragOffset.x = event.clientX - translate_pos.x;
+				startDragOffset.y = event.clientY - translate_pos.y;
+			});
+
+			canvas.addEventListener("mousemove", function (event) {
+				if (is_dragging) {
+					translate_pos.x = event.clientX - startDragOffset.x;
+					translate_pos.y = event.clientY - startDragOffset.y;
+					draw(scale, translate_pos, space);
+				}
+			});
+
+			canvas.addEventListener("mouseup", function () {
+				is_dragging = false;
+			});
+
+			canvas.addEventListener("mouseout", function () {
+				is_dragging = false;
+			});
 
 			draw(scale, translate_pos, space);
 		};
@@ -191,9 +215,10 @@ const draw_edges = (space, ctx) => {
 		for (const r of w.refs) {
 			var node = space.node_map.get(r);
 
+			// perhaps don't draw the stuff outside the screen when we are zoomed in
 			const [x, y] = ll_to_xy(space, node);
 
-			if (count == 0) {
+			if (count === 0) {
 				ctx.moveTo(x, y);
 			} else {
 				ctx.lineTo(x, y);
