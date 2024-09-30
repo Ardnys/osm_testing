@@ -176,7 +176,7 @@ const draw = (scale, tranlatePos, space) => {
 	ctx.setTransform(1, 0, 0, 1, 0, 0);
 
 	const scaledWidth = canvas.width * scale;
-	const scaledHeight = canvas.height * scale;
+	const scaledHeight = canvas.height * scale * -1; // it's upside down for some reason
 
 	const scaledOffsetX = (scaledWidth - canvas.width) / 2;
 	const scaledOffsetY = (scaledHeight - canvas.height) / 2;
@@ -185,7 +185,7 @@ const draw = (scale, tranlatePos, space) => {
 		tranlatePos.x * scale - scaledOffsetX,
 		tranlatePos.y * scale - scaledOffsetY
 	);
-	ctx.scale(scale, scale);
+	ctx.scale(scale, scale * -1); // likewise, upside down so we flip it
 	ctx.fillStyle = "black";
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	ctx.fillStyle = "white";
